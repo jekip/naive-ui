@@ -19,7 +19,7 @@ import { useMemo } from 'vooks'
 import { cssrAnchorMetaName } from '../../../_mixins/common'
 import { c } from '../../../_utils/cssr'
 import { NScrollbar, ScrollbarInst } from '../../../_internal'
-import { formatLength, resolveSlot } from '../../../_utils'
+import { formatLength, resolveSlot, warn } from '../../../_utils'
 import { NEmpty } from '../../../empty'
 import {
   dataTableInjectionKey,
@@ -184,6 +184,7 @@ export default defineComponent({
       stickyExpandedRowsRef,
       renderExpandIconRef,
       summaryPlacementRef,
+      treeMateRef,
       setHeaderScrollLeft,
       doUpdateExpandedRowKeys,
       handleTableBodyScroll,
@@ -209,17 +210,8 @@ export default defineComponent({
     const mergedExpandedRowKeySetRef = computed(() => {
       return new Set(mergedExpandedRowKeysRef.value)
     })
-    function getRowInfo (key: RowKey): RowData {
-      const tableData = paginatedDataRef.value
-      let result: RowData = []
-      function rowTree (data: RowData[]): void {
-        data.forEach((item) => {
-          if (item.key === key) result = item.rawNode
-          else item.children?.length && rowTree(item.children)
-        })
-      }
-      rowTree(tableData)
-      return result
+    function getRowInfo (key: RowKey): RowData | undefined {
+      return treeMateRef.value.getNode(key)?.rawNode
     }
     function handleCheckboxUpdateChecked (
       tmNode: { key: RowKey },
@@ -227,6 +219,10 @@ export default defineComponent({
       shiftKey: boolean
     ): void {
       const rowInfo = getRowInfo(tmNode.key)
+      if (!rowInfo) {
+        warn('data-table', `fail to get row data with key ${tmNode.key}`)
+        return
+      }
       if (shiftKey) {
         const lastIndex = paginatedDataRef.value.findIndex(
           (item) => item.key === lastSelectedKey
@@ -262,6 +258,10 @@ export default defineComponent({
 
     function handleRadioUpdateChecked (tmNode: { key: RowKey }): void {
       const rowInfo = getRowInfo(tmNode.key)
+      if (!rowInfo) {
+        warn('data-table', `fail to get row data with key ${tmNode.key}`)
+        return
+      }
       doCheck(tmNode.key, true, rowInfo)
     }
 
